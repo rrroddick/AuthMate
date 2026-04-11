@@ -43,7 +43,7 @@ struct AccountRowView: View {
                             .lineLimit(1)
                         Text(account.name)
                             .font(.caption)
-                            .foregroundColor(.white.opacity(0.75))
+                            .foregroundColor(.white.opacity(0.9))
                             .lineLimit(1)
                     } else {
                         Text(account.name)
@@ -68,7 +68,7 @@ struct AccountRowView: View {
                             .frame(width: 14, height: 14)
                         Text("\(Int(timeRemaining))s")
                             .font(.system(.caption2, design: .rounded).bold())
-                            .foregroundColor(timeRemaining <= 5 ? .red : .white.opacity(0.8))
+                            .foregroundColor(timeRemaining <= 5 ? .red : .white.opacity(0.9))
                             .monospacedDigit()
                     }
                 }
