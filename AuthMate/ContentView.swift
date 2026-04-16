@@ -3,6 +3,16 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var store: AccountStore
     @State private var showingAddAccount = false
+    @State private var searchText = ""
+    @FocusState private var searchFocused: Bool
+
+    private var filteredAccounts: [OTPAccount] {
+        guard !searchText.isEmpty else { return store.accounts }
+        let query = searchText.lowercased()
+        return store.accounts.filter {
+            $0.issuer?.lowercased().contains(query) == true || $0.name.lowercased().contains(query)
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -14,6 +24,39 @@ struct ContentView: View {
                     .foregroundColor(.primary)
 
                 Spacer()
+
+                if !store.accounts.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+                        TextField("Search", text: $searchText)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 12))
+                            .frame(width: 90)
+                            .focused($searchFocused)
+                            .onKeyPress(.escape) {
+                                searchText = ""
+                                searchFocused = false
+                                return .handled
+                            }
+                        if !searchText.isEmpty {
+                            Button(action: {
+                                searchText = ""
+                                searchFocused = false
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 5)
+                    .background(Color.primary.opacity(0.07))
+                    .clipShape(Capsule())
+                }
 
                 HStack(spacing: 10) {
                     Button(action: {
@@ -62,10 +105,24 @@ struct ContentView: View {
                 }
                 .padding()
                 .frame(maxHeight: .infinity)
+            } else if filteredAccounts.isEmpty {
+                VStack(spacing: 14) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 44))
+                        .foregroundColor(.secondary)
+                    Text("No Results")
+                        .font(.headline)
+                    Text("No accounts match \"\(searchText)\"")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding()
+                .frame(maxHeight: .infinity)
             } else {
                 ScrollView {
                     LazyVStack(spacing: 10) {
-                        ForEach(store.accounts) { account in
+                        ForEach(filteredAccounts) { account in
                             AccountRowView(account: account)
                                 .contextMenu {
                                     Button {
