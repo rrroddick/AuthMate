@@ -49,8 +49,8 @@ Google Authenticator esporta gli account tramite un QR speciale (formato `otpaut
 
 ### Requisiti
 
-- macOS 14 o superiore
-- Xcode 15+ (per compilare dal sorgente)
+- macOS 26 (Tahoe) o superiore
+- Xcode 26+ (per compilare dal sorgente)
 
 ### Installazione
 
@@ -101,8 +101,8 @@ Google Authenticator exports accounts via a special QR code (in `otpauth-migrati
 
 ### Requirements
 
-- macOS 14 or later
-- Xcode 15+ (to build from source)
+- macOS 26 (Tahoe) or later
+- Xcode 26+ (to build from source)
 
 ### Installation
 

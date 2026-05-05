@@ -8,6 +8,7 @@ struct AccountRowView: View {
     @State private var timeRemaining: Double = 30.0
     @State private var progress: Double = 1.0
     @State private var showCopied: Bool = false
+    @State private var lastCounter: UInt64 = 0
     
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
@@ -108,14 +109,16 @@ struct AccountRowView: View {
     }
     
     private func updateTOTP() {
-        let now = Date()
+        let now = Date().timeIntervalSince1970
         let interval = 30.0
-        let currentSecond = now.timeIntervalSince1970.truncatingRemainder(dividingBy: interval)
-        timeRemaining = interval - currentSecond
+        let counter = UInt64(now / interval)
+        timeRemaining = interval - now.truncatingRemainder(dividingBy: interval)
         progress = timeRemaining / interval
-        
-        // Refresh PIN when window resets
-        if pin == "------" || timeRemaining > 29.0 {
+
+        // Counter-based refresh: immune to timer jitter, App Nap, and popover reopen.
+        // timeRemaining > 29 would miss rollovers on a delayed tick; counter change never does.
+        if pin == "------" || counter != lastCounter {
+            lastCounter = counter
             if let secret = try? KeychainManager.getSecret(for: account.secretReference) {
                 if let newPin = try? TOTPGenerator.generatePIN(secret: secret) {
                     pin = newPin

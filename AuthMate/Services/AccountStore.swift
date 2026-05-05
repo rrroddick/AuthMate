@@ -86,11 +86,12 @@ class AccountStore: ObservableObject {
         var name = url.path.replacingOccurrences(of: "^/", with: "", options: .regularExpression)
         var issuer: String? = nil
         var secret = ""
-        
+
         if let issuerRanges = name.range(of: ":") {
             issuer = String(name[..<issuerRanges.lowerBound])
             name = String(name[issuerRanges.upperBound...]).trimmingCharacters(in: .whitespaces)
         }
+        if name.isEmpty { name = "Account" }
         
         url.queryItems?.forEach { item in
             if item.name.lowercased() == "secret", let value = item.value {
@@ -99,7 +100,14 @@ class AccountStore: ObservableObject {
                 issuer = value
             }
         }
-        
+
+        let algorithm = url.queryItems?.first(where: { $0.name.lowercased() == "algorithm" })?.value?.uppercased() ?? "SHA1"
+        let digits    = url.queryItems?.first(where: { $0.name.lowercased() == "digits"    })?.value ?? "6"
+        let period    = url.queryItems?.first(where: { $0.name.lowercased() == "period"    })?.value ?? "30"
+        guard algorithm == "SHA1", digits == "6", period == "30" else {
+            throw NSError(domain: "Unsupported URI", code: 4, userInfo: [NSLocalizedDescriptionKey: String(localized: "This URI uses TOTP parameters (algorithm, digits, or period) that AuthMate does not yet support")])
+        }
+
         guard !secret.isEmpty else {
             throw NSError(domain: "Missing Secret", code: 2, userInfo: [NSLocalizedDescriptionKey: String(localized: "Secret is missing")])
         }
@@ -117,9 +125,5 @@ class AccountStore: ObservableObject {
         saveAccounts()
     }
     
-    func move(from source: IndexSet, to destination: Int) {
-        accounts.move(fromOffsets: source, toOffset: destination)
-        // Do not re-sort after a manual drag — preserve the user-chosen order
-        saveAccounts()
-    }
+
 }

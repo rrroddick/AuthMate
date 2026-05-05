@@ -41,15 +41,18 @@ struct GoogleAuthMigrationDecoder {
             
             if tag == 1 && wireType == 2 {
                 // otp_parameters (repeated message OtpParameters)
-                guard let length = readVarInt(data: data, offset: &offset) else { break }
-                let endOffset = offset + Int(length)
-                
-                if endOffset <= data.count {
-                    if let account = parseOtpParameters(data: data, start: offset, end: endOffset) {
-                        accounts.append(account)
-                    }
-                    offset = endOffset
+                // Use Int(exactly:) to avoid a trap when the varint exceeds Int.max.
+                // Break (not continue) when length is invalid: offset has already advanced
+                // past the length varint, so resuming mid-message would mis-parse body bytes
+                // as fresh tags and could construct phantom accounts.
+                guard let length = readVarInt(data: data, offset: &offset),
+                      let intLength = Int(exactly: length),
+                      intLength <= data.count - offset else { break }
+                let endOffset = offset + intLength
+                if let account = parseOtpParameters(data: data, start: offset, end: endOffset) {
+                    accounts.append(account)
                 }
+                offset = endOffset
             } else {
                 skipField(data: data, offset: &offset, wireType: Int(wireType))
             }
@@ -70,9 +73,10 @@ struct GoogleAuthMigrationDecoder {
             let tag = Int(tagWire >> 3)
             
             if wireType == 2 { // Length delimited
-                guard let length = readVarInt(data: data, offset: &offset) else { break }
-                let fieldEnd = offset + Int(length)
-                guard fieldEnd <= end else { break }
+                guard let length = readVarInt(data: data, offset: &offset),
+                      let intLength = Int(exactly: length),
+                      intLength <= end - offset else { break }
+                let fieldEnd = offset + intLength
                 
                 let fieldData = data.subdata(in: offset..<fieldEnd)
                 if tag == 1 {
@@ -112,9 +116,10 @@ struct GoogleAuthMigrationDecoder {
         } else if wireType == 1 {
             offset += 8
         } else if wireType == 2 {
-            if let len = readVarInt(data: data, offset: &offset) {
-                offset += Int(len)
-            }
+            guard let len = readVarInt(data: data, offset: &offset),
+                  let intLen = Int(exactly: len),
+                  intLen <= data.count - offset else { return }
+            offset += intLen
         } else if wireType == 5 {
             offset += 4
         }

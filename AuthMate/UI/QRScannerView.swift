@@ -89,10 +89,19 @@ class QRScannerController: NSViewController, AVCaptureVideoDataOutputSampleBuffe
             
             if let results = request.results as? [VNBarcodeObservation], let first = results.first {
                 if let payloadString = first.payloadStringValue {
-                    DispatchQueue.main.sync {
-                        if let success = self?.onRecognize?(payloadString), success {
-                            self?.captureSession.stopRunning()
-                            successfulScan = true
+                    // Set before defer runs so the 1.5s reset isn't scheduled unconditionally.
+                    // Use async (not sync) to avoid a reverse-wait deadlock: videoQueue holds
+                    // this completion while main.sync waits for it, and stopRunning() on main
+                    // waits for videoQueue to drain — classic deadlock.
+                    successfulScan = true
+                    DispatchQueue.main.async { [weak self] in
+                        guard let self else { return }
+                        if let success = self.onRecognize?(payloadString), success {
+                            self.captureSession.stopRunning()
+                        } else {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                                self?.isProcessing = false
+                            }
                         }
                     }
                 }
