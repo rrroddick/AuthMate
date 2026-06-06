@@ -1,0 +1,60 @@
+name: Release
+
+# Builds the .app and attaches it to a GitHub Release whenever a tag is pushed.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # needed to create the GitHub Release
+
+jobs:
+  build:
+    runs-on: macos-26 # macOS 26 SDK required by the 26.4 deployment target
+    env:
+      SCHEME: AuthMate
+      PROJECT: AuthMate.xcodeproj
+      CONFIGURATION: Release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.app
+
+      - name: Build (.app)
+        run: |
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration "$CONFIGURATION" \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=YES \
+            build
+
+      - name: Package .app into a zip
+        run: |
+          APP_PATH="build/Build/Products/${CONFIGURATION}/${SCHEME}.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "::error::App not found at $APP_PATH"
+            exit 1
+          fi
+          mkdir -p dist
+          # ditto preserves bundle structure and resource forks
+          ditto -c -k --keepParent "$APP_PATH" "dist/${SCHEME}-${GITHUB_REF_NAME}.zip"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AuthMate-${{ github.ref_name }}
+          path: dist/*.zip
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true
