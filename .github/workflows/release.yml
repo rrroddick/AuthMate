@@ -19,10 +19,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Select latest Xcode
-        run: sudo xcode-select -s /Applications/Xcode_26.app
+      - name: Select Xcode
+        # /Applications/Xcode.app is the image's stable symlink to its default (newest)
+        # Xcode. Pinning a versioned path like Xcode_26.app breaks whenever the image
+        # moves: that exact path has never existed on macos-26.
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app
+          xcodebuild -version
 
       - name: Build (.app)
         run: |
@@ -48,13 +53,13 @@ jobs:
           ditto -c -k --keepParent "$APP_PATH" "dist/${SCHEME}-${GITHUB_REF_NAME}.zip"
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: AuthMate-${{ github.ref_name }}
           path: dist/*.zip
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: dist/*.zip
           generate_release_notes: true
